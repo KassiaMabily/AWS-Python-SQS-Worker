@@ -1,0 +1,137 @@
+org: kassiafraga
+app: aws-python-sqs-worker
+service: aws-python-sqs-worker
+frameworkVersion: '3'
+
+useDotenv: true
+
+custom:
+  tableNotification: 'notification-table-${self:provider.stage}'
+  tableLog: 'log-table-${self:provider.stage}'
+  dynamodb:
+    stages:
+      - development
+    start:
+      migrate: true
+      port: 8000
+      inMemory: true
+      heapInitial: 200m
+      heapMax: 1g
+      seed: true
+      convertEmptyValues: true
+
+
+provider:
+  name: aws
+  runtime: python3.8
+  stage: ${opt:stage,'development'}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:DescribeTable
+      Resource:
+        - { "Fn::GetAtt": ["NotificationDynamoDBTable", "Arn" ] }
+  environment:
+    NOTIFICATION_TABLE: ${self:custom.tableNotification}
+    LOG_TABLE: ${self:custom.tableLog}
+
+constructs:
+  jobs:
+    type: queue
+    worker:
+      handler: handler.consumer
+
+functions:
+  producer:
+    handler: handler.producer
+    events:
+      - httpApi:
+          method: post
+          path: /produce/{id}
+    environment:
+      QUEUE_URL: ${construct:jobs.queueUrl}
+  createNotification:
+    handler: handler_notification.createNotification
+    events:
+      - httpApi:
+          method: post
+          path: /notification
+  listNotification:
+    handler: handler_notification.listNotification
+    events:
+      - httpApi:
+          method: get
+          path: /notification
+  getNotification:
+    handler: handler_notification.getNotification
+    events:
+      - httpApi:
+          method: get
+          path: /notification/{id}
+  deleteNotification:
+    handler: handler_notification.deleteNotification
+    events:
+      - httpApi:
+          method: delete
+          path: /notification/{id}
+  updateNotification:
+    handler: handler_notification.updateNotification
+    events:
+      - httpApi:
+          method: put
+          path: /notification/{id}
+  listLog:
+    handler: handler_log.listLog
+    events:
+      - httpApi:
+          method: get
+          path: /log
+
+resources:
+  Resources:
+    NotificationDynamoDBTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: notification_id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: notification_id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.tableNotification}
+    LogDynamoDBTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: log_id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: log_id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.tableLog}
+
+plugins:
+  - serverless-lift
+  - serverless-python-requirements
+  - serverless-dotenv-plugin
+  - serverless-dynamodb-local
+  - serverless-offline
+package:
+  patterns:
+    - '!node_modules/**'

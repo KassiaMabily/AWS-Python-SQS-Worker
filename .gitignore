@@ -1,0 +1,53 @@
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Serverless directories
+.serverless
+
+# Environments
+.env
+.env.production
+.env.homologation
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+
+# python #
+*.log
+*.pot
+*.pyc
+__pycache__
+
+# package directories
+node_modules/
+package-lock.json
+
+# Serverless directories
+.serverless
+
+# Webpack directories
+.webpack
+
+# Dynamodb
+.dynamodb
+
+.env*.local
